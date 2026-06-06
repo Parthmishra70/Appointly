@@ -14,6 +14,11 @@ type Appointment = {
 
 type Status = "idle" | "loading" | "success" | "error";
 
+type Toast = {
+  message: string;
+  type: "success" | "error" | "warning";
+} | null;
+
 function formatDateTime(iso: string): { date: string; time: string; relative: string } {
   const d = new Date(iso);
   const now = new Date();
@@ -52,17 +57,60 @@ export default function Page() {
   const [loadingAppts, setLoadingAppts] = useState(true);
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("all");
 
+  const [toast, setToast] = useState<Toast>(null);
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "warning" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(prev => prev && prev.message === message ? null : prev);
+    }, 6000);
+  }, []);
+
   const fetchAppointments = useCallback(async () => {
     try {
       const res = await fetch("/api/appointments");
       const json = await res.json();
-      if (json.appointments) setAppointments(json.appointments);
+      if (json.appointments) {
+        setAppointments(json.appointments);
+
+        // Auto-trigger reminder from the client if it reaches the 1-hour window
+        const now = new Date();
+        for (const appt of json.appointments) {
+          const apptTime = new Date(appt.appointment_time);
+          const diffMin = (apptTime.getTime() - now.getTime()) / 60000;
+
+          // If scheduled for within 60 minutes, in the future, and reminder hasn't been sent yet
+          if (diffMin > 0 && diffMin <= 60 && !appt.reminder_sent) {
+            fetch("/api/appointments/remind", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: appt.id }),
+            })
+              .then(async (remindRes) => {
+                const remindJson = await remindRes.json();
+                if (remindRes.ok) {
+                  showToast(`Reminder sent to ${appt.customer_name}!`, "success");
+                  // Re-fetch appointments immediately to update status badges
+                  const freshRes = await fetch("/api/appointments");
+                  const freshJson = await freshRes.json();
+                  if (freshJson.appointments) setAppointments(freshJson.appointments);
+                } else {
+                  showToast(`Failed to remind ${appt.customer_name}: ${remindJson.error}`, "error");
+                }
+              })
+              .catch((err) => {
+                console.error("Failed to auto-trigger reminder:", err);
+                showToast(`Failed to trigger reminder for ${appt.customer_name}`, "error");
+              });
+          }
+        }
+      }
     } catch {
       // silently fail on poll
     } finally {
       setLoadingAppts(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     fetchAppointments();
@@ -95,10 +143,18 @@ export default function Page() {
       setTime("");
       fetchAppointments();
 
+      if (json.warning) {
+        showToast(`Warning: ${json.warning}`, "warning");
+      } else {
+        showToast("Appointment booked successfully!", "success");
+      }
+
       setTimeout(() => setStatus("idle"), 4000);
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setErrorMsg(msg);
+      showToast(`Error booking appointment: ${msg}`, "error");
     }
   }
 
@@ -306,6 +362,20 @@ export default function Page() {
           </section>
         </div>
       </main>
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div style={{
+          ...styles.toast,
+          ...(toast.type === "error" ? styles.toastError :
+              toast.type === "warning" ? styles.toastWarning : styles.toastSuccess),
+        }}>
+          <span style={styles.toastIcon}>
+            {toast.type === "error" ? "✕" : toast.type === "warning" ? "⚠️" : "✓"}
+          </span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -663,5 +733,38 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 6,
+  },
+  toast: {
+    position: "fixed" as const,
+    bottom: 24,
+    right: 24,
+    padding: "12px 20px",
+    borderRadius: "var(--radius)",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 13,
+    fontWeight: 500,
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+    zIndex: 1000,
+    transition: "all 0.2s ease",
+  },
+  toastSuccess: {
+    background: "var(--green-bg)",
+    color: "var(--green)",
+    border: "1px solid var(--green)33",
+  },
+  toastError: {
+    background: "var(--red-bg)",
+    color: "var(--red)",
+    border: "1px solid var(--red)33",
+  },
+  toastWarning: {
+    background: "var(--amber-bg)",
+    color: "var(--amber)",
+    border: "1px solid var(--amber)33",
+  },
+  toastIcon: {
+    fontWeight: 700,
   },
 };

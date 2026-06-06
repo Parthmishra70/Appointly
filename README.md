@@ -112,4 +112,4 @@ The cron job (`/api/cron`):
 2. Sends a WhatsApp reminder for each match
 3. Sets `reminder_sent = true` immediately after a successful send
 
-Additionally, if a customer books an appointment scheduled for less than 1 hour away, a reminder is sent immediately during the booking transaction to ensure they receive a notification even if the daily cron has already run.
+Additionally, if a customer books an appointment scheduled for less than 1 hour away, a reminder is sent immediately during the booking transaction to ensure they receive a notification.

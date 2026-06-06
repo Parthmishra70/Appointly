@@ -34,12 +34,15 @@ export async function POST(req: NextRequest) {
 
     const updates: { confirmation_sent?: boolean; reminder_sent?: boolean } = {};
 
+    const errors: string[] = [];
+
     // Try sending confirmation
     try {
       await sendConfirmation(phone_number, customer_name, appointment_time);
       updates.confirmation_sent = true;
     } catch (twilioErr) {
       console.error("Twilio confirmation failed:", twilioErr);
+      errors.push("Confirmation failed (" + (twilioErr instanceof Error ? twilioErr.message : twilioErr) + ")");
     }
 
     // Try sending reminder if scheduled for within 1 hour
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
         updates.reminder_sent = true;
       } catch (reminderErr) {
         console.error("Twilio reminder failed on booking:", reminderErr);
+        errors.push("Reminder failed (" + (reminderErr instanceof Error ? reminderErr.message : reminderErr) + ")");
       }
     }
 
@@ -64,7 +68,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, appointment: data }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      appointment: data,
+      warning: errors.length > 0 ? errors.join(", ") : undefined
+    }, { status: 201 });
   } catch (err) {
     console.error("POST /api/appointments error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
