@@ -27,34 +27,41 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
 
     // Send WhatsApp confirmation & immediate reminder if scheduled within 1 hour
+    const now = new Date();
+    const apptTime = new Date(appointment_time);
+    const timeDiffMs = apptTime.getTime() - now.getTime();
+    const isWithinOneHour = timeDiffMs <= 60 * 60 * 1000;
+
+    const updates: { confirmation_sent?: boolean; reminder_sent?: boolean } = {};
+
+    // Try sending confirmation
     try {
       await sendConfirmation(phone_number, customer_name, appointment_time);
-      
-      const now = new Date();
-      const apptTime = new Date(appointment_time);
-      const timeDiffMs = apptTime.getTime() - now.getTime();
-      const isWithinOneHour = timeDiffMs <= 60 * 60 * 1000;
-
-      const updates: { confirmation_sent: boolean; reminder_sent?: boolean } = {
-        confirmation_sent: true
-      };
-
-      if (isWithinOneHour) {
-        try {
-          await sendReminder(phone_number, customer_name, appointment_time);
-          updates.reminder_sent = true;
-        } catch (reminderErr) {
-          console.error("Twilio reminder failed on booking:", reminderErr);
-        }
-      }
-
-      await supabase
-        .from("appointments")
-        .update(updates)
-        .eq("id", data.id);
+      updates.confirmation_sent = true;
     } catch (twilioErr) {
-      console.error("Twilio notification flow failed:", twilioErr);
-      // Don't fail the request — appointment is saved
+      console.error("Twilio confirmation failed:", twilioErr);
+    }
+
+    // Try sending reminder if scheduled for within 1 hour
+    if (isWithinOneHour) {
+      try {
+        await sendReminder(phone_number, customer_name, appointment_time);
+        updates.reminder_sent = true;
+      } catch (reminderErr) {
+        console.error("Twilio reminder failed on booking:", reminderErr);
+      }
+    }
+
+    // Update notification flags in Supabase
+    if (Object.keys(updates).length > 0) {
+      try {
+        await supabase
+          .from("appointments")
+          .update(updates)
+          .eq("id", data.id);
+      } catch (dbErr) {
+        console.error("Failed to update notification flags in database:", dbErr);
+      }
     }
 
     return NextResponse.json({ success: true, appointment: data }, { status: 201 });
