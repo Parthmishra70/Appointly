@@ -1,0 +1,44 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font-sans: var(--font-sans, 'DM Sans', sans-serif);
+  --font-mono: var(--font-mono, 'DM Mono', monospace);
+
+  --bg:        #0e0e11;
+  --bg-card:   #16161a;
+  --bg-input:  #1c1c22;
+  --border:    #2a2a35;
+  --border-hi: #3d3d52;
+  --text:      #e8e8f0;
+  --muted:     #7a7a94;
+  --accent:    #7c6af7;
+  --accent-hi: #9d8fff;
+  --accent-bg: #7c6af714;
+  --green:     #34d399;
+  --green-bg:  #34d39912;
+  --amber:     #fbbf24;
+  --amber-bg:  #fbbf2412;
+  --red:       #f87171;
+  --red-bg:    #f8717112;
+
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 16px;
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent); color: #fff; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
