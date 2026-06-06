@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { sendReminder } from "@/lib/twilio";
 
-// GET /api/cron — called by Vercel Cron every minute
+// GET /api/cron — called by Vercel Cron once daily
 // Protected by CRON_SECRET header
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -12,15 +12,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
-    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find appointments within the next hour that haven't had a reminder sent
+    // Find appointments within the next 24 hours that haven't had a reminder sent
     const { data: appointments, error } = await supabase
       .from("appointments")
       .select("*")
       .eq("reminder_sent", false)
       .gte("appointment_time", now.toISOString())
-      .lte("appointment_time", oneHourFromNow.toISOString());
+      .lte("appointment_time", twentyFourHoursFromNow.toISOString());
 
     if (error) throw error;
 

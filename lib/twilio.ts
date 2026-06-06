@@ -45,8 +45,12 @@ export async function sendReminder(
   appointmentTime: string
 ): Promise<void> {
   const date = new Date(appointmentTime);
-  const formatted = date.toLocaleString("en-IN", {
+  const formattedTime = date.toLocaleString("en-IN", {
     timeStyle: "short",
+    timeZone: "Asia/Kolkata",
+  });
+  const formattedDate = date.toLocaleString("en-IN", {
+    dateStyle: "full",
     timeZone: "Asia/Kolkata",
   });
 
@@ -55,7 +59,8 @@ export async function sendReminder(
     to: toWhatsApp(phone),
     body:
       `Hi ${customerName}! ⏰\n\n` +
-      `Friendly reminder: your appointment is coming up at ${formatted} — less than an hour away.\n\n` +
+      `Friendly reminder: you have an appointment coming up on:\n` +
+      `📅 ${formattedDate} at ${formattedTime}\n\n` +
       `See you soon!`,
   });
 }

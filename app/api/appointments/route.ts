@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { sendConfirmation } from "@/lib/twilio";
+import { sendConfirmation, sendReminder } from "@/lib/twilio";
 
 // POST /api/appointments — create a new appointment
 export async function POST(req: NextRequest) {
@@ -24,15 +24,34 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    // Send WhatsApp confirmation (non-blocking — we return success even if Twilio hiccups)
+    // Send WhatsApp confirmation & immediate reminder if scheduled within 1 hour
     try {
       await sendConfirmation(phone_number, customer_name, appointment_time);
+      
+      const now = new Date();
+      const apptTime = new Date(appointment_time);
+      const timeDiffMs = apptTime.getTime() - now.getTime();
+      const isWithinOneHour = timeDiffMs <= 60 * 60 * 1000;
+
+      const updates: { confirmation_sent: boolean; reminder_sent?: boolean } = {
+        confirmation_sent: true
+      };
+
+      if (isWithinOneHour) {
+        try {
+          await sendReminder(phone_number, customer_name, appointment_time);
+          updates.reminder_sent = true;
+        } catch (reminderErr) {
+          console.error("Twilio reminder failed on booking:", reminderErr);
+        }
+      }
+
       await supabase
         .from("appointments")
-        .update({ confirmation_sent: true })
+        .update(updates)
         .eq("id", data.id);
     } catch (twilioErr) {
-      console.error("Twilio confirmation failed:", twilioErr);
+      console.error("Twilio notification flow failed:", twilioErr);
       // Don't fail the request — appointment is saved
     }
 

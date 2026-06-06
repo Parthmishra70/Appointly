@@ -1,6 +1,6 @@
 # Appointment Reminder System
 
-A Next.js app that books appointments, sends WhatsApp confirmations via Twilio, and automatically reminds customers when their appointment is less than an hour away.
+A Next.js app that books appointments, sends WhatsApp confirmations via Twilio, and automatically sends daily reminders (or immediate reminders for near-term bookings).
 
 **Stack:** Next.js 14 · Supabase (Postgres) · Twilio WhatsApp · Vercel Cron
 
@@ -12,7 +12,7 @@ A Next.js app that books appointments, sends WhatsApp confirmations via Twilio, 
 - Instant WhatsApp confirmation message on booking
 - Live dashboard showing all appointments with status badges
 - Auto-refreshes every 15 seconds
-- **Bonus:** Vercel Cron fires every minute and sends a WhatsApp reminder for appointments within 1 hour (deduplicated with `reminder_sent` flag)
+- **Bonus:** Vercel Cron fires once daily and sends WhatsApp reminders for appointments within the next 24 hours (deduplicated with `reminder_sent` flag). Additionally, booking an appointment scheduled for within 1 hour will immediately trigger a reminder.
 
 ---
 
@@ -79,7 +79,7 @@ vercel
 
 Or connect your GitHub repo to Vercel for automatic deploys on push.
 
-**The `vercel.json` cron config is picked up automatically** — Vercel will call `/api/cron` every minute once deployed. The endpoint is protected by the `CRON_SECRET` header (Vercel injects this automatically for cron invocations).
+**The `vercel.json` cron config is picked up automatically** — Vercel will call `/api/cron` daily once deployed. The endpoint is protected by the `CRON_SECRET` header (Vercel injects this automatically for cron invocations).
 
 ---
 
@@ -97,7 +97,7 @@ lib/
   supabase.ts                Supabase client + types
   twilio.ts                  sendConfirmation() and sendReminder()
 supabase-setup.sql           Run once in Supabase SQL Editor
-vercel.json                  Declares the cron schedule (* * * * *)
+vercel.json                  Declares the cron schedule (0 2 * * *)
 .env.example                 Template — copy to .env.local
 ```
 
@@ -108,8 +108,8 @@ vercel.json                  Declares the cron schedule (* * * * *)
 The `appointments` table has a `reminder_sent boolean default false` column.
 
 The cron job (`/api/cron`):
-1. Queries for appointments where `reminder_sent = false` AND `appointment_time` is between now and now+1hr
+1. Queries for appointments where `reminder_sent = false` AND `appointment_time` is between now and now+24hr
 2. Sends a WhatsApp reminder for each match
 3. Sets `reminder_sent = true` immediately after a successful send
 
-This means even if the cron fires 60 times per hour, each customer gets exactly one reminder.
+Additionally, if a customer books an appointment scheduled for less than 1 hour away, a reminder is sent immediately during the booking transaction to ensure they receive a notification even if the daily cron has already run.

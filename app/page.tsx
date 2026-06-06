@@ -223,7 +223,7 @@ export default function Page() {
               </div>
               <div style={styles.infoRow}>
                 <span style={styles.infoIcon}>⏰</span>
-                <span>Automatic reminder when &lt;1 hour away</span>
+                <span>Automatic daily reminder for upcoming appointments</span>
               </div>
             </div>
           </section>
