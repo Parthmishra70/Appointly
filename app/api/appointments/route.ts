@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { sendConfirmation, sendReminder } from "@/lib/twilio";
 
+export const dynamic = "force-dynamic";
+
 // POST /api/appointments — create a new appointment
 export async function POST(req: NextRequest) {
   try {

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { sendReminder } from "@/lib/twilio";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/cron — called by Vercel Cron once daily
 // Protected by CRON_SECRET header
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.error("Cron authorization failed. Expected Bearer " + (process.env.CRON_SECRET ? "[configured]" : "[missing]") + ", got " + (authHeader ? "[provided]" : "[none]"));
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
