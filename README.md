@@ -113,3 +113,13 @@ The cron job (`/api/cron`):
 3. Sets `reminder_sent = true` immediately after a successful send
 
 Additionally, if a customer books an appointment scheduled for less than 1 hour away, a reminder is sent immediately during the booking transaction to ensure they receive a notification.
+
+---
+
+## Project Reflection
+
+### Implementation Summary
+To build this system, I utilized **Next.js 14** (App Router) for the full-stack framework, **Supabase (Postgres)** for the database, **Twilio WhatsApp API** for sending messages, and **Vercel Cron** for daily scheduling. The data flows from a user submitting the appointment form on the dashboard, which triggers a POST request to the Next.js API. This endpoint persists the appointment in Supabase and triggers Twilio to send an immediate confirmation WhatsApp message. If the appointment is scheduled for less than 1 hour away, it also immediately fires a WhatsApp reminder to ensure the customer is notified. For daily reminders, a scheduled Vercel Cron job invokes the `/api/cron` endpoint, which queries Supabase for pending reminders scheduled in the next 24 hours and sends them using Twilio. The hardest part was ensuring robust notification deduplication, which we solved by introducing database flags like `reminder_sent` and updating them immediately after sending to prevent duplicate messages. Additionally, standardizing phone numbers to E.164 format and handling the Twilio sandbox opt-in requirements added subtle validation challenges.
+
+### Development Time
+- **Actual Time Spent:** Approximately 5 hours
